@@ -9,9 +9,11 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.KeyGenerator;
@@ -23,11 +25,10 @@ public class ClientSender {
 	private static int portNumber;
 	
 	
-	private static void sendEcryptedAesKEY(OutputStream out, byte[] publicKey) throws IOException, GeneralSecurityException {
-		KeyGenerator kgen = KeyGenerator.getInstance("AES");
-		kgen.init(ProtocolUtilities.KEY_SIZE_AES); // AES key length 128 bits (16 bytes)
-		byte[] aesKey = kgen.generateKey().getEncoded();
-		new SecretKeySpec(aesKey, "AES");
+	private static void sendEcryptedAesKEY(OutputStream out, byte[] publicKey, byte[] aesKey) 
+			throws IOException, GeneralSecurityException {
+		
+		//new SecretKeySpec(aesKey, "AES");
 		ProtocolUtilities.printByteArray("Unencrypted AES:", aesKey);
 		Cipher pkCipher = Cipher.getInstance("RSA");
 		PublicKey pk = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKey));
@@ -38,15 +39,14 @@ public class ClientSender {
 		cipherStream.close();
 		tempByteStream.writeTo(out);
 	}
-	private static void sendFile(byte[] publicKey) {
+	private static void sendFile(byte[] publicKey, byte[] aesKey) {
 		try (Socket socket = new Socket(hostName, portNumber);
 				BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
 				BufferedInputStream in = new BufferedInputStream(socket.getInputStream());
 			) 
 			{
 			out.write("RECIEVE FILE\n\n".getBytes("ASCII"));
-			sendEcryptedAesKEY(out,publicKey);
-			out.write("JUDGE".getBytes("ASCII"));
+			sendEcryptedAesKEY(out,publicKey,aesKey);
 			out.flush();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -95,12 +95,20 @@ public class ClientSender {
 		hostName = "localhost";
 		portNumber = 9001;
 		byte[] publicKey = getPublicKey();
-		if (publicKey == null) {
+		if (publicKey == null)
+			System.exit(1);
+		byte[] secretAesKey = null;
+		try {
+			KeyGenerator kgen = KeyGenerator.getInstance("AES");
+			kgen.init(ProtocolUtilities.KEY_SIZE_AES); // AES key length 128 bits (16 bytes)
+			secretAesKey = kgen.generateKey().getEncoded();
+		} catch(NoSuchAlgorithmException e) {
+			System.err.println("Failed to generate AES key. Terminating...");
 			System.exit(1);
 		}
 		
 		ProtocolUtilities.printByteArray("Public key:",publicKey);
-		ProtocolUtilities.sendEcryptedAES(new FileOutputStream(new File("EncryptedAES.der")),publicKey);
-		sendFile(publicKey);
+		sendEcryptedAesKEY(new FileOutputStream(new File("EncryptedAES.der")),publicKey,secretAesKey);
+		sendFile(publicKey,secretAesKey);
 	}
 }

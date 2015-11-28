@@ -1,41 +1,24 @@
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Scanner;
-import javax.crypto.Cipher;
-import javax.crypto.CipherOutputStream;
-import javax.crypto.KeyGenerator;
-import javax.crypto.spec.SecretKeySpec;
 
 public class ProtocolUtilities {
 
 	public static final int KEY_SIZE_AES = 128;
-	public static void printByteArray(String msg, byte[] byteArray) {
+	
+	public static void printByteArray(String msg, byte[] byteArray) { //used for debugging
 		System.out.println(msg);
-		for (byte b : byteArray) {
-			System.out.print(b + ",");
+		System.out.println("Total: " + byteArray.length + " bytes.");
+		StringBuilder result = new StringBuilder();
+		for (int i = 0; i < byteArray.length; i++) {
+		    result.append(String.format("%02x", byteArray[i]));
+		    if ((i+1) % 16 == 0 )
+		    	result.append("\n");
+		    else if ((i+1) % 2 == 0 )
+		    	result.append(" ");
 		}
-		System.out.println();
-	}
-
-	public static void sendEcryptedAES(OutputStream out, byte[] publicKey) throws IOException, GeneralSecurityException {
-		KeyGenerator kgen = KeyGenerator.getInstance("AES");
-		kgen.init(128); // AES key length 128 bits (16 bytes)
-		byte[] aesKey = kgen.generateKey().getEncoded();
-		new SecretKeySpec(aesKey, "AES");
-		printByteArray("Unencrypted AES:", aesKey);
-		Cipher pkCipher = Cipher.getInstance("RSA");
-
-		PublicKey pk = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKey));
-		pkCipher.init(Cipher.ENCRYPT_MODE, pk);
-		CipherOutputStream cipherStream = new CipherOutputStream(out, pkCipher);
-		cipherStream.write(aesKey);
-		cipherStream.close();
+		System.out.println(result.toString());
 	}
 
 	public static ArrayList<String> consumeAndBreakHeader(InputStream in) throws IOException {
