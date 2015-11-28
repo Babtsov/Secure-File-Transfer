@@ -1,23 +1,15 @@
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.HashSet;
+import java.util.ArrayList;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherOutputStream;
 
 public class ServerReciever {
     private static final int PORT = 9001;
@@ -35,37 +27,36 @@ public class ServerReciever {
     }
     
     private static class Handler extends Thread {
-        private String command;
         private Socket socket;
-        private BufferedReader in;
-        private PrintWriter out;
+        private InputStream in;
+        private OutputStream out;
 
-        private void sendPublicKey() {
+        private void sendPublicKey() throws UnsupportedEncodingException, IOException, InterruptedException {
         	StringBuilder messageHeader = new StringBuilder();
         	messageHeader.append("PUBLIC KEY\n");
         	File publicKeyFile = new File("public.der");
         	long keyLength = publicKeyFile.length();
-        	messageHeader.append("LENGTH: "+keyLength+"\n");
+        	messageHeader.append(keyLength+"\n\n");
         	try {
-	        	FileReader publicKeyStream;
-				publicKeyStream = new FileReader(publicKeyFile);
-				char[] key = new char[(int) keyLength];
+        		System.out.println(out.getClass().toString());
+        		BufferedInputStream publicKeyStream;
+				publicKeyStream = new BufferedInputStream(new FileInputStream(publicKeyFile));
+				byte[] key = new byte[(int) keyLength];
 	        	publicKeyStream.read(key);
 	        	publicKeyStream.close();
-	        	out.println(messageHeader.toString() + new String(key));
-	        	System.out.println("public key sent to client.");
+	        	byte[] byteHeader = messageHeader.toString().getBytes("ASCII");
+	        	out.write(byteHeader);
+	        	out.write(key);
+	        	out.flush();
 			} catch (IOException e) {
 				e.printStackTrace();
 				sendErrorMessage("PUBLIC KEY FAIL");
 				System.out.println("failed sending public key.");
 			}
-        
         }
-        private void fileTransferHandler(){
-        	
-        }
-        private void sendErrorMessage(String msg){
-        	out.println("ERROR\n"+msg);
+        private void sendErrorMessage(String msg) throws UnsupportedEncodingException, IOException{
+        	msg = "ERROR\n" + msg + "\n\n";
+        	out.write(msg.getBytes("ASCII"));
         }
         public Handler(Socket socket) {
             this.socket = socket;
@@ -73,23 +64,22 @@ public class ServerReciever {
 
         public void run() {
             try {
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                out = new PrintWriter(socket.getOutputStream(), true);
-                command = in.readLine();
+                in = new BufferedInputStream(socket.getInputStream());
+                out = new BufferedOutputStream(socket.getOutputStream());
+                ArrayList<String> headerParts = ProtocolUtilities.consumeAndBreakHeader(in);
+                String command = headerParts.get(0);
                 switch(command){
 	                case "GET PUBLIC KEY":
 	                	sendPublicKey();
+	                	System.out.println("Sent!");
 	                	break;
 	                case "ACCEPT FILE":
-	                	//fileTransferHandler();
 	                default:
-	                	sendErrorMessage("INVALID COMMAND");
+	                	//sendErrorMessage("INVALID COMMAND");
                 }
-            in.close();
-            out.close();
-            socket.close();
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 System.out.println(e); 
+                System.out.println("Server Error!!!");
             }
             
         }

@@ -1,63 +1,65 @@
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.StringReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class ClientSender {
+	
 	private static String hostName;
 	private static int portNumber;
 
-	private static String sendMessage(String msg) {
-		try (Socket echoSocket = new Socket(hostName, portNumber);
-				PrintWriter out = new PrintWriter(echoSocket.getOutputStream(),
-						true);
-				BufferedReader in = new BufferedReader(new InputStreamReader(
-						echoSocket.getInputStream()));
+	public static ArrayList<String> breakHeader(String header) {
+		if(header.length() == 0)
+			return null;
+		ArrayList<String> headerParts = new ArrayList<String>();
+		Scanner scanner = new Scanner(header);
+		scanner.useDelimiter("\n");
+		while(scanner.hasNext()) {
+			headerParts.add(scanner.next());
+		}
+		scanner.close();
+		return headerParts;
+	}
+	private static byte[] getPublicKey() {
+		try (	Socket socket = new Socket(hostName, portNumber);
+				BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
+				BufferedInputStream in = new BufferedInputStream(socket.getInputStream());
 			) {
-			out.println(msg);
-			String serverOutputLine;
-			StringBuilder serverResponse = new StringBuilder();
-			while ((serverOutputLine = in.readLine()) != null) {
-				serverResponse.append(serverOutputLine);
-				System.out.println(serverOutputLine);
+			out.write("GET PUBLIC KEY\n\n".getBytes("ASCII"));
+			out.flush();
+			ArrayList<String> headerParts = ProtocolUtilities.consumeAndBreakHeader(in);
+			if (headerParts.size() < 2 && headerParts.get(0) != "PUBLIC KEY") {
+				System.out.println("Invalid header for public key message");
+				return null;
 			}
-			return serverResponse.toString();
+			int keySize = Integer.parseInt(headerParts.get(1));
+			byte[] publicKey = new byte[keySize];
+			in.read(publicKey);
+			return publicKey;
 		} catch (UnknownHostException e) {
-			System.err.println("Don't know about host " + hostName);
+			System.err.println("Unknown host " + hostName);
 			System.exit(1);
 		} catch (IOException e) {
-			System.err.println("Couldn't get I/O for the connection to "
+			System.err.println("Unable to get I/O for the connection "
 					+ hostName);
 			System.exit(1);
+		} catch(NumberFormatException e) {
+			System.err.println("Invalid key size");
 		}
-		throw new RuntimeException();
+		return null;
 	}
 
 	public static void main(String[] args) throws IOException {
-//		if (args.length != 2) {
-//			System.err
-//					.println("Usage: java EchoClient <host name> <port number>");
-//			System.exit(1);
-//		}
-//		hostName = args[0];
-//		portNumber = Integer.parseInt(args[1]);
 		hostName = "localhost";
 		portNumber = 9001;
-		String serverResponse = sendMessage("GET PUBLIC KEY");
-//		ByteArrayInputStream responseStream = new ByteArrayInputStream(serverResponse.getBytes("UTF-8"));
-//		Scanner scanner = new Scanner(responseStream);
-//		String firstLine = scanner.nextLine();
-//		if (!firstLine.equals("PUBLIC KEY")){
-//			System.out.println("Error at recieving the public key from the server!");
-//		}
-//		int keylength = scanner.nextInt();
-//		scanner.close();
-//		byte[] publicKeyArray = new byte[keylength];
-		
+		byte[] publicKey = getPublicKey();
+		System.out.println("Public key:");
+		for(byte b : publicKey) {
+			System.out.print(b+",");
+		}
+
 	}
 }
