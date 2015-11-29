@@ -23,8 +23,8 @@ import javax.crypto.CipherInputStream;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
-public class ServerReciever {
-	private static final int PORT = 9001;
+public class ServerReceiver {
+	private static final int PORT = 8080;
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("The server is running.");
@@ -43,8 +43,7 @@ public class ServerReciever {
 		private InputStream in;
 		private OutputStream out;
 
-		private void sendPublicKey() throws UnsupportedEncodingException,
-				IOException, InterruptedException {
+		private void sendPublicKey() throws UnsupportedEncodingException,IOException, InterruptedException {
 			StringBuilder messageHeader = new StringBuilder();
 			messageHeader.append("PUBLIC KEY\n");
 			File publicKeyFile = new File("public.der");
@@ -141,9 +140,7 @@ public class ServerReciever {
 			} catch (IOException | InterruptedException e) {
 				e.printStackTrace();
 				System.out.println("Server Error!!!");
-			} catch (InvalidKeyException | NoSuchAlgorithmException
-					| NoSuchPaddingException | InvalidKeySpecException e) {
-				// TODO Auto-generated catch block
+			} catch (InvalidKeyException | NoSuchAlgorithmException| NoSuchPaddingException | InvalidKeySpecException e) {
 				e.printStackTrace();
 			}
 		}
