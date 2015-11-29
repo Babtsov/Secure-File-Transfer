@@ -9,29 +9,17 @@ public class ProtocolUtilities {
 	public static final int KEY_SIZE_AES = 128;
 	
 	public static void printByteArray(String msg, byte[] byteArray) { //used for debugging
-		boolean debug = false;
-		if (!debug) {
-			System.out.println(msg);
-			System.out.println("Total: " + byteArray.length + " bytes.");
-			StringBuilder result = new StringBuilder();
-			for (int i = 0; i < byteArray.length; i++) {
-			    result.append(String.format("%02x", byteArray[i]));
-			    if ((i+1) % 16 == 0 )
-			    	result.append("\n");
-			    else if ((i+1) % 2 == 0 )
-			    	result.append(" ");
-			}
-			System.out.println(result.toString());	
+		System.out.println(msg);
+		System.out.println("Total: " + byteArray.length + " bytes.");
+		StringBuilder result = new StringBuilder();
+		for (int i = 0; i < byteArray.length; i++) {
+			result.append(String.format("%02x", byteArray[i]));
+			if ((i + 1) % 16 == 0)
+				result.append("\n");
+			else if ((i + 1) % 2 == 0)
+				result.append(" ");
 		}
-		else {
-			System.out.println(msg);
-			System.out.println("Total: " + byteArray.length + " bytes.");
-			StringBuilder result = new StringBuilder();
-			for (int i = 0; i < byteArray.length; i++) {
-			    result.append(String.format("0x%02x,", byteArray[i]));
-			}
-			System.out.println(result.toString());
-		}
+		System.out.println(result.toString());	
 	}
 	
 	/**

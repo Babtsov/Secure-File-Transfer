@@ -55,31 +55,20 @@ public class ClientSender {
 			cipherStream.close();
 			tempByteStream.writeTo(out);
 			// Encrypt the name of the file using AES and send it over the socket
-//			ByteArrayInputStream fileNameStream = new ByteArrayInputStream(
-//					(file.getName()  + "\n").getBytes("ASCII"));
-//			ByteArrayOutputStream encryptedFileNameStream = new ByteArrayOutputStream();
+			ByteArrayInputStream fileNameStream = new ByteArrayInputStream((file.getName()  + "\n").getBytes("ASCII"));
+			ByteArrayOutputStream encryptedFileNameStream = new ByteArrayOutputStream();
 			SecretKeySpec aeskeySpec = new SecretKeySpec(aesKey, "AES");
 			Cipher aesCipher = Cipher.getInstance("AES");
 			aesCipher.init(Cipher.ENCRYPT_MODE, aeskeySpec);
-//			CipherOutputStream cipherOutStream = new CipherOutputStream(encryptedFileNameStream, aesCipher);
-//			ProtocolUtilities.sendBytes(fileNameStream,cipherOutStream);
-//			encryptedFileNameStream.writeTo(out);
-//			out.flush();
+			CipherOutputStream cipherOutStream = new CipherOutputStream(encryptedFileNameStream, aesCipher);
+			ProtocolUtilities.sendBytes(fileNameStream,cipherOutStream);
+			cipherOutStream.close();
+			encryptedFileNameStream.writeTo(out);
 			// send the actual file
 			FileInputStream fileStream = new FileInputStream(file);
 			CipherOutputStream os = new CipherOutputStream(out, aesCipher);
 			ProtocolUtilities.sendBytes(fileStream,os);
 			os.close();
-			
-			// ALTERNATIVE
-			
-			ByteArrayOutputStream temp = new ByteArrayOutputStream();
-			FileInputStream fileStream1 = new FileInputStream(file);
-			CipherOutputStream os1 = new CipherOutputStream(temp, aesCipher);
-			ProtocolUtilities.sendBytes(fileStream1,os1);
-			os1.close();
-			byte[] encrypted = temp.toByteArray();
-			ProtocolUtilities.printByteArray("encrypted file: ", encrypted);
 			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -142,8 +131,7 @@ public class ClientSender {
 		hostName = "localhost";
 		portNumber = 9001;
 		byte[] publicRsaKey = getPublicKey();
-		//byte[] secretAesKey = generateAesKey();
-		byte[] secretAesKey = new byte[]{0x34,0x7f,0x2b,0x4b,0x6c,0x7b,(byte) 0xf8,0x41,(byte) 0x99,(byte) 0xd3,0x26,(byte) 0xe3,(byte) 0xcb,(byte) 0xe0,(byte) 0x8e,(byte) 0xbd};
+		byte[] secretAesKey = generateAesKey();
 		sendFile(publicRsaKey,secretAesKey,new File("try.txt"));
 	}
 }

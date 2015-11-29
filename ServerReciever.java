@@ -99,12 +99,12 @@ public class ServerReciever {
 			SecretKeySpec aeskeySpec = new SecretKeySpec(aesKey, "AES");
 			aesCipher.init(Cipher.DECRYPT_MODE, aeskeySpec);
 			CipherInputStream cipherInputStream = new CipherInputStream(in, aesCipher);
-//			StringBuilder fileName = new StringBuilder();
-//			char c;
-//			while ((c = (char) cipherInputStream.read()) != '\n') {
-//				fileName.append(c);
-//			}
-			File receivedFile = new File("QOZO.txt");
+			StringBuilder fileName = new StringBuilder();
+			char c;
+			while ((c = (char) cipherInputStream.read()) != '\n') {
+				fileName.append(c);
+			}
+			File receivedFile = new File(fileName.toString() + ".recieved.txt");
 			FileOutputStream foStream = new FileOutputStream(receivedFile);
 			ProtocolUtilities.sendBytes(cipherInputStream, foStream);
 			return receivedFile;
