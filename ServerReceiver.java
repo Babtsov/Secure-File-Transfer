@@ -2,7 +2,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,21 +43,13 @@ public class ServerReceiver {
 		private OutputStream out;
 
 		private void sendPublicKey() throws UnsupportedEncodingException,IOException, InterruptedException {
-			StringBuilder messageHeader = new StringBuilder();
-			messageHeader.append("PUBLIC KEY\n");
-			File publicKeyFile = new File("public.der");
-			long keyLength = publicKeyFile.length();
-			messageHeader.append(keyLength + "\n\n");
 			try {
-				BufferedInputStream publicKeyStream;
-				publicKeyStream = new BufferedInputStream(new FileInputStream(
-						publicKeyFile));
-				byte[] key = new byte[(int) keyLength];
-				publicKeyStream.read(key);
-				publicKeyStream.close();
-				byte[] byteHeader = messageHeader.toString().getBytes("ASCII");
-				out.write(byteHeader);
-				out.write(key);
+				StringBuilder messageHeader = new StringBuilder();
+				messageHeader.append("PUBLIC KEY\n");
+				File publicKeyFile = new File("public.der");
+				messageHeader.append(publicKeyFile.length() + "\n\n");
+				out.write(messageHeader.toString().getBytes("ASCII"));
+				out.write(Files.readAllBytes(publicKeyFile.toPath()));
 				out.flush();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -83,7 +74,7 @@ public class ServerReceiver {
 			// put the private RSA key in the appropriate data structure
 			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyFile);
 			PrivateKey privateKey = KeyFactory.getInstance("RSA").generatePrivate(privateKeySpec);
-			// decrypt the AES key using the private RSA key
+			// Decipher the AES key using the private RSA key
 			Cipher pkCipher = Cipher.getInstance("RSA");
 			pkCipher.init(Cipher.DECRYPT_MODE, privateKey);
 			CipherInputStream cipherInputStream = new CipherInputStream(new ByteArrayInputStream(encryptedAesKey), pkCipher);
@@ -127,7 +118,7 @@ public class ServerReceiver {
 				case "FILE TRANSFER":
 					byte[] privateRsaKey = Files.readAllBytes(new File("private.der").toPath());
 					byte[] aesKey = readAndDecryptAesKey(privateRsaKey);
-					ProtocolUtilities.printByteArray("Decrypted AES key: ",aesKey);
+					//ProtocolUtilities.printByteArray("Decrypted AES key: ",aesKey);
 					File file = receiveFile(aesKey);
 					System.out.println("Received File");
 					System.out.println("Name: " + file.getName());
@@ -135,11 +126,10 @@ public class ServerReceiver {
 					break;
 				default:
 					sendErrorMessage("INVALID COMMAND");
-					System.out.println("Invalid command!" + command);
+					System.out.println("Invalid command detected: " + command);
 				}
 			} catch (IOException | InterruptedException e) {
 				e.printStackTrace();
-				System.out.println("Server Error!!!");
 			} catch (InvalidKeyException | NoSuchAlgorithmException| NoSuchPaddingException | InvalidKeySpecException e) {
 				e.printStackTrace();
 			}

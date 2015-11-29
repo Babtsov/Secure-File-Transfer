@@ -24,8 +24,8 @@ public class ProtocolUtilities {
 	
 	/**
 	 * Forwards the bytes from one stream to another
-	 * @param source the input stream from which we are sending
-	 * @param destination the output stream that we are sending to
+	 * @param source - the input stream from which we are sending
+	 * @param destination - the output stream that we are sending to
 	 * @throws IOException
 	 */
 	public static void sendBytes(InputStream source, OutputStream destination) throws IOException {
@@ -40,7 +40,7 @@ public class ProtocolUtilities {
 	/**
 	 * Consumes just the ASCII encoded header from the stream (but leaves the body untouched). This also includes consuming
 	 * the two new line characters "\n\n" that separate the body from the header.
-	 * @param in the input stream (from a socket)
+	 * @param in - the input stream (from a socket)
 	 * @return ArrayList that contains the header parts separated.
 	 * @throws IOException
 	 */
@@ -59,8 +59,7 @@ public class ProtocolUtilities {
 			}
 			pipeline.remove(0); // keep track of only the recent 2 bytes
 		}
-		if (header.length() == 0)
-			return null;
+		if (header.length() == 0) return null;
 		ArrayList<String> headerParts = new ArrayList<String>();
 		Scanner scanner = new Scanner(header.toString());
 		scanner.useDelimiter("\n");
