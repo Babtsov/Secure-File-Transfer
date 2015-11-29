@@ -94,7 +94,7 @@ public class ServerReceiver {
 			while ((c = (char) cipherInputStream.read()) != '\n') {
 				fileName.append(c);
 			}
-			File receivedFile = new File(fileName.toString() + ".recieved.txt");
+			File receivedFile = new File(fileName.toString());
 			FileOutputStream foStream = new FileOutputStream(receivedFile);
 			ProtocolUtilities.sendBytes(cipherInputStream, foStream);
 			return receivedFile;
