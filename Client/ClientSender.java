@@ -56,19 +56,17 @@ public class ClientSender {
 			sendEcryptedAesKEY(out,publicKey,aesKey);
 			// Encrypt the name of the file using AES and send it over the socket
 			ByteArrayInputStream fileNameStream = new ByteArrayInputStream((file.getName()  + "\n").getBytes("ASCII"));
-			ByteArrayOutputStream encryptedFileNameStream = new ByteArrayOutputStream();
 			SecretKeySpec aeskeySpec = new SecretKeySpec(aesKey, "AES");
 			Cipher aesCipher = Cipher.getInstance("AES");
 			aesCipher.init(Cipher.ENCRYPT_MODE, aeskeySpec);
-			CipherOutputStream cipherOutStream = new CipherOutputStream(encryptedFileNameStream, aesCipher);
+			CipherOutputStream cipherOutStream = new CipherOutputStream(out, aesCipher);
 			ProtocolUtilities.sendBytes(fileNameStream,cipherOutStream);
-			cipherOutStream.close();
-			encryptedFileNameStream.writeTo(out);
 			// send the actual file
 			FileInputStream fileStream = new FileInputStream(file);
 			CipherOutputStream os = new CipherOutputStream(out, aesCipher);
 			ProtocolUtilities.sendBytes(fileStream,os);
 			os.close();
+			out.close();
 			
 		} catch (IOException | GeneralSecurityException e) {
 			System.err.println("Failed to send file.");

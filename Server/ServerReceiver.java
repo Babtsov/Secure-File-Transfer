@@ -58,10 +58,14 @@ public class ServerReceiver {
 			}
 		}
 
-		private void sendErrorMessage(String msg)
-				throws UnsupportedEncodingException, IOException {
-			msg = "ERROR\n" + msg + "\n\n";
-			out.write(msg.getBytes("ASCII"));
+		private void sendErrorMessage(String msg) {
+			try {
+				msg = "ERROR\n" + msg + "\n\n";
+				out.write(msg.getBytes("ASCII"));
+			} catch (IOException e) {
+				System.out.println("Failed to send an error message to client.");
+				System.exit(1);
+			}
 		}
 
 		private byte[] readAndDecryptAesKey(byte[] privateKeyFile)
