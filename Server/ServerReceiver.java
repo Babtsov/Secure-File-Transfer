@@ -6,20 +6,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
-import java.security.InvalidKeyException;
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
 public class ServerReceiver {
@@ -42,20 +38,14 @@ public class ServerReceiver {
 		private InputStream in;
 		private OutputStream out;
 
-		private void sendPublicKey() throws UnsupportedEncodingException,IOException, InterruptedException {
-			try {
-				StringBuilder messageHeader = new StringBuilder();
-				messageHeader.append("PUBLIC KEY\n");
-				File publicKeyFile = new File("public.der");
-				messageHeader.append(publicKeyFile.length() + "\n\n");
-				out.write(messageHeader.toString().getBytes("ASCII"));
-				out.write(Files.readAllBytes(publicKeyFile.toPath()));
-				out.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
-				sendErrorMessage("PUBLIC KEY FAIL");
-				System.out.println("failed sending public key.");
-			}
+		private void sendPublicKey() throws IOException {
+			StringBuilder messageHeader = new StringBuilder();
+			messageHeader.append("PUBLIC KEY\n");
+			File publicKeyFile = new File("public.der");
+			messageHeader.append(publicKeyFile.length() + "\n\n");
+			out.write(messageHeader.toString().getBytes("ASCII"));
+			out.write(Files.readAllBytes(publicKeyFile.toPath()));
+			out.flush();
 		}
 
 		private void sendErrorMessage(String msg) {
@@ -68,10 +58,7 @@ public class ServerReceiver {
 			}
 		}
 
-		private byte[] readAndDecryptAesKey(byte[] privateKeyFile)
-				throws IOException, NoSuchAlgorithmException,
-				NoSuchPaddingException, InvalidKeySpecException,
-				InvalidKeyException {
+		private byte[] readAndDecryptAesKey(byte[] privateKeyFile) throws GeneralSecurityException, IOException {
 			// read the encrypted AES key from the socket
 			byte[] encryptedAesKey = new byte[ProtocolUtilities.KEY_SIZE_AES * 2];
 			in.read(encryptedAesKey);
@@ -87,20 +74,28 @@ public class ServerReceiver {
 			cipherInputStream.close();
 			return aesKey;
 		}
-		private File receiveFile(byte[] aesKey) 
-				throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IOException {
+		
+		private String scanLineFromCipherStream(CipherInputStream cstream) throws IOException {
+			StringBuilder line = new StringBuilder();
+			char c;
+			while ((c = (char) cstream.read()) != '\n') {
+				line.append(c);
+			}
+			return line.toString();
+		}
+		
+		private File receiveFile(byte[] aesKey) throws GeneralSecurityException, IOException {
 			Cipher aesCipher = Cipher.getInstance("AES");
 			SecretKeySpec aeskeySpec = new SecretKeySpec(aesKey, "AES");
 			aesCipher.init(Cipher.DECRYPT_MODE, aeskeySpec);
 			CipherInputStream cipherInputStream = new CipherInputStream(in, aesCipher);
-			StringBuilder fileName = new StringBuilder();
-			char c;
-			while ((c = (char) cipherInputStream.read()) != '\n') {
-				fileName.append(c);
-			}
+			String fileName = scanLineFromCipherStream(cipherInputStream);
+			String fileSize = scanLineFromCipherStream(cipherInputStream);
 			File receivedFile = new File(fileName.toString());
 			FileOutputStream foStream = new FileOutputStream(receivedFile);
-			ProtocolUtilities.sendBytes(cipherInputStream, foStream);
+			ProtocolUtilities.sendBytes(cipherInputStream, foStream, Long.parseLong(fileSize));
+			foStream.flush();
+			foStream.close();
 			return receivedFile;
 		}
 
@@ -109,33 +104,60 @@ public class ServerReceiver {
 		}
 
 		public void run() {
+			String command;
 			try {
 				in = new BufferedInputStream(socket.getInputStream());
 				out = new BufferedOutputStream(socket.getOutputStream());
 				ArrayList<String> headerParts = ProtocolUtilities.consumeAndBreakHeader(in);
-				String command = headerParts.get(0);
-				switch (command) {
-				case "GET PUBLIC KEY":
+				command = headerParts.get(0);
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.err.println("Connection to client dropped.");
+				return;
+			} catch (NullPointerException e) {
+				System.err.println("Unable to read command from client");
+				return;
+			}
+			switch (command) {
+			case "GET PUBLIC KEY":
+				try {
 					sendPublicKey();
 					System.out.println("Sent public key!");
-					break;
-				case "FILE TRANSFER":
-					byte[] privateRsaKey = Files.readAllBytes(new File("private.der").toPath());
+				} catch (IOException e) {
+					System.err.println("Connection to client dropped. Failed to send public key.");
+				}
+				break;
+			case "FILE TRANSFER":
+				byte[] privateRsaKey;
+				try {
+					privateRsaKey = Files.readAllBytes(new File("private.der").toPath());
+				} catch (IOException e) {
+					sendErrorMessage("SERVER ERROR");
+					System.err.println("Server failed to open private key file.");
+					return;
+				}
+				try {
 					byte[] aesKey = readAndDecryptAesKey(privateRsaKey);
-					//ProtocolUtilities.printByteArray("Decrypted AES key: ",aesKey);
 					File file = receiveFile(aesKey);
 					System.out.println("Received File");
 					System.out.println("Name: " + file.getName());
 					System.out.println("Size:" + file.length());
-					break;
-				default:
-					sendErrorMessage("INVALID COMMAND");
-					System.out.println("Invalid command detected: " + command);
+					out.write("SUCCESS\nsuccessful transmission\n\n".getBytes("ASCII"));
+					out.flush();
+					socket.close();
+				} catch (GeneralSecurityException e) {
+					sendErrorMessage("Failed to decrypt AES key and/or file content.");
+					System.err.println("Server failed to decrypt AES key and/or file content.");
+					return;
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.err.println("Connection to client dropped.");
+					return;
 				}
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
-			} catch (InvalidKeyException | NoSuchAlgorithmException| NoSuchPaddingException | InvalidKeySpecException e) {
-				e.printStackTrace();
+				break;
+			default:
+				sendErrorMessage("INVALID COMMAND");
+				System.out.println("Invalid command detected: " + command);
 			}
 		}
 	}
